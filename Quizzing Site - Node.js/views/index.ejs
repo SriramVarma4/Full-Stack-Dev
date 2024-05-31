@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Quiz App</title>
+    <style>
+        .option {
+            cursor: pointer;
+        }
+        
+        .selected {
+            background-color: lightblue;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Create Quiz</h1>
+    <form id="createQuizForm">
+        <label for="question">Question:</label>
+        <input type="text" id="question" name="question" required><br>
+
+        <label for="options">Options:</label>
+        <input type="text" id="option1" name="options" required>
+        <input type="text" id="option2" name="options" required>
+        <input type="text" id="option3" name="options" required>
+        <input type="text" id="option4" name="options" required><br>
+
+        <label for="rightAnswer">Right Answer:</label>
+        <input type="number" id="rightAnswer" name="rightAnswer" min="1" max="4" required><br>
+
+        <label for="startDate">Start Date:</label>
+        <input type="datetime-local" id="startDate" name="startDate" required><br>
+
+        <label for="endDate">End Date:</label>
+        <input type="datetime-local" id="endDate" name="endDate" required><br>
+
+        <button type="submit">Create</button>
+    </form>
+
+    <h1>Active Quizzes</h1>
+    <div id="activeQuizzesContainer"></div>
+
+    <h1>Quiz Result</h1>
+    <form id="quizResultForm">
+        <label for="quizId">Quiz ID:</label>
+        <input type="text" id="quizId" name="quizId" required><br>
+
+        <button type="submit">Get Result</button>
+    </form>
+
+    <h1>All Quizzes</h1>
+    <div id="allQuizzesContainer"></div>
+
+    <script>
+        const createQuiz = async(event) => {
+            event.preventDefault();
+            const question = document.getElementById('question').value;
+            const options = [
+                document.getElementById('option1').value,
+                document.getElementById('option2').value,
+                document.getElementById('option3').value,
+                document.getElementById('option4').value,
+            ];
+            const rightAnswer = parseInt(document.getElementById('rightAnswer').value);
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            const response = await fetch('/quizzes', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question,
+                    options,
+                    rightAnswer,
+                    startDate,
+                    endDate
+                })
+            });
+
+            if (response.ok) {
+                alert('Quiz created successfully!');
+                document.getElementById('createQuizForm').reset();
+                getAllQuizzes();
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.error}`);
+            }
+        };
+
+        const getActiveQuizzes = async() => {
+                const response = await fetch('/quizzes/active');
+                if (response.ok) {
+                    const activeQuizzes = await response.json();
+                    const activeQuizzesContainer = document.getElementById('activeQuizzesContainer');
+                    if (activeQuizzes.length > 0) {
+                        activeQuizzesContainer.innerHTML = activeQuizzes.map((quiz) => `
+                        <div>
+                            <h2>${quiz.question}</h2>
+                            <ul>
+                                ${quiz.options.map((option, index) => `
+                                    <li class="option" data-quiz-id="${quiz.id}" data-option-index="${index}">
+                                        ${option}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                            <p>Start Date: ${quiz.start_date}</p>
+                            <p>End Date: ${quiz.end_date}</p>
+                        </div>
+                    `).join('');
+
+                    const optionElements = activeQuizzesContainer.getElementsByClassName('option');
+                    for (const optionElement of optionElements) {
+                        optionElement.addEventListener('click', handleOptionClick);
+                    }
+                } else {
+                    activeQuizzesContainer.innerHTML = 'No active quizzes available';
+                }
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.error}`);
+            }
+        };
+
+        const handleOptionClick = (event) => {
+            const selectedOption = event.target;
+            const quizId = selectedOption.getAttribute('data-quiz-id');
+            const optionIndex = selectedOption.getAttribute('data-option-index');
+            const quizOptions = selectedOption.parentNode.getElementsByTagName('li');
+
+            for (const option of quizOptions) {
+                if (option === selectedOption) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            }
+
+            // TODO: Perform further actions with the selected option
+        };
+
+        const getQuizResult = async (event) => {
+            event.preventDefault();
+            const quizId = document.getElementById('quizId').value;
+            const response = await fetch(`/quizzes/${quizId}/result`);
+            if (response.ok) {
+                const result = await response.json();
+                alert(`Quiz Result: ${result.result}`);
+                document.getElementById('quizResultForm').reset();
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.error}`);
+            }
+        };
+
+        const getAllQuizzes = async () => {
+            const response = await fetch('/quizzes/all');
+            if (response.ok) {
+                const allQuizzes = await response.json();
+                const allQuizzesContainer = document.getElementById('allQuizzesContainer');
+                allQuizzesContainer.innerHTML = allQuizzes.map((quiz) => `
+                    <div>
+                        <h3>${quiz.question}</h3>
+                        <ul>
+                            ${quiz.options.map((option) => `<li>${option}</li>`).join('')}
+                        </ul>
+                        <p>Right Answer: ${quiz.right_answer}</p>
+                        <p>Start Date: ${quiz.start_date}</p>
+                        <p>End Date: ${quiz.end_date}</p>
+                    </div>
+                `).join('');
+            } else {
+                const error = await response.json();
+                alert(`Error: ${error.error}`);
+            }
+        };
+
+        document.getElementById('createQuizForm').addEventListener('submit', createQuiz);
+        document.getElementById('quizResultForm').addEventListener('submit', getQuizResult);
+
+        getActiveQuizzes();
+        getAllQuizzes();
+    </script>
+</body>
+
+</html>
